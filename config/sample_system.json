@@ -1,1 +1,17 @@
+{
+  "system_name": "MissionControlAlpha",
+  "cpu": {
+    "registers": 16,
+    "cache_kb": 64,
+    "frequency_ghz": 2.5
+  },
+  "memory": {
+    "size_mb": 2048,
+    "type": "DDR4"
+  },
+  "bus": {
+    "type": "AXI",
+    "width_bits": 64
+  }
+}
 

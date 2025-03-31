@@ -1,3 +1,4 @@
+import csv
 import random
 
 class FaultInjector:
@@ -14,14 +15,10 @@ class FaultInjector:
 
         reg_index = random.randint(0, len(cpu.register_values) - 1)
         original_value = cpu.register_values[reg_index]
-
         bit_position = random.randint(0, 31)
         flipped_value = original_value ^ (1 << bit_position)
-
-        # Apply the fault
         cpu.register_values[reg_index] = flipped_value
 
-        # Log it
         entry = {
             "register": reg_index,
             "bit_flipped": bit_position,
@@ -43,3 +40,11 @@ class FaultInjector:
         print("\n📜 Fault Injection Log:")
         for i, entry in enumerate(self.log):
             print(f"  #{i+1}: Register {entry['register']}, Bit {entry['bit_flipped']}, {entry['before']} → {entry['after']}")
+
+    def export_log_to_csv(self, filepath="fault_log.csv"):
+        print(f"\n💾 Exporting log to {filepath}...")
+        with open(filepath, mode='w', newline='') as file:
+            writer = csv.DictWriter(file, fieldnames=["register", "bit_flipped", "before", "after"])
+            writer.writeheader()
+            writer.writerows(self.log)
+        print("✅ Log exported successfully.")

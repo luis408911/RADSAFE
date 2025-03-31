@@ -7,11 +7,10 @@
   },
   "memory": {
     "size_mb": 2048,
-    "type": "DDR4"
+    "mem_type": "DDR4"
   },
   "bus": {
-    "type": "AXI",
+    "bus_type": "AXI",
     "width_bits": 64
   }
 }
-

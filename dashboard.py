@@ -1,82 +1,90 @@
 import dash
+from dash import dcc
+from dash import html
 import dash_bootstrap_components as dbc
-from dash import dcc, html, Input, Output
+from dash.dependencies import Input, Output
 import plotly.express as px
 import pandas as pd
 import json
+import threading
+import time
+
+from radsafe.core.alert_engine import check_for_critical_faults
 
 # Load system config
-with open("config/sample_system.json") as f:
+with open('config/sample_system.json') as f:
     system_config = json.load(f)
 
-# Load fault log CSV (update filename as needed)
-fault_df = pd.read_csv("fault_log.csv")  # Ensure this file exists in the root directory
+# Load fault log data
+fault_df = pd.read_csv('fault_logs.csv')
 
+# Initialize Dash app with Bootstrap theme
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.CYBORG])
-server = app.server
+app.title = "RADSAFE Dashboard"
 
-# Create a timeline bar chart of fault counts over time
-fig_faults = px.histogram(
-    fault_df,
-    x="timestamp",
-    color="severity",
-    title="Faults Over Time",
-    labels={"timestamp": "Timestamp", "count": "Fault Count"},
-    nbins=30
-)
-
-fig_faults.update_layout(bargap=0.2, plot_bgcolor="#1e1e1e", paper_bgcolor="#1e1e1e", font_color="white")
-
+# Layout
 app.layout = dbc.Container([
-    html.H1("🚀 RADSAFE System Dashboard", className="my-3 text-warning"),
+    html.H1("🚀 RADSAFE System Dashboard", className="text-primary mt-4"),
+    html.H2(system_config['system_name'], className="text-info"),
 
-    html.H2(system_config["system_name"], className="text-light"),
-
-    html.H4("\U0001F9EA CPU", className="mt-4 text-info"),
-    html.P(f"Registers: {system_config['cpu']['registers']}", className="text-light"),
-    html.P(f"Cache: {system_config['cpu']['cache_kb']} KB", className="text-light"),
-    html.P(f"Frequency: {system_config['cpu']['frequency_ghz']} GHz", className="text-light"),
-
-    html.H4("📠 Memory", className="mt-4 text-info"),
-    html.P(f"Size: {system_config['memory']['size_mb']} MB", className="text-light"),
-    html.P(f"Type: {system_config['memory']['mem_type']}", className="text-light"),
-
-    html.H4("🧵 Bus", className="mt-4 text-info"),
-    html.P(f"Type: {system_config['bus']['bus_type']}", className="text-light"),
-    html.P(f"Width: {system_config['bus']['width_bits']} bits", className="text-light"),
-
-    html.Hr(className="my-4"),
-
-    html.H3("🔍 Fault Logs Explorer", className="text-warning"),
+    html.Hr(),
 
     dbc.Row([
         dbc.Col([
-            html.Label("Component", className="text-light"),
-            dcc.Dropdown(
-                id="component-filter",
-                options=[{"label": comp, "value": comp} for comp in fault_df["component"].unique()],
-                placeholder="Select component"
-            )
-        ], md=6),
-
+            html.H4("🧠 CPU"),
+            html.P(f"Registers: {system_config['cpu']['registers']}"),
+            html.P(f"Cache: {system_config['cpu']['cache_kb']} KB"),
+            html.P(f"Frequency: {system_config['cpu']['frequency_ghz']} GHz")
+        ], width=4),
         dbc.Col([
-            html.Label("Severity", className="text-light"),
+            html.H4("💾 Memory"),
+            html.P(f"Size: {system_config['memory']['size_mb']} MB"),
+            html.P(f"Type: {system_config['memory']['mem_type']}")
+        ], width=4),
+        dbc.Col([
+            html.H4("🛠 Bus"),
+            html.P(f"Type: {system_config['bus']['bus_type']}"),
+            html.P(f"Width: {system_config['bus']['width_bits']} bits")
+        ], width=4)
+    ]),
+
+    html.Hr(),
+
+    html.H3("📊 Fault Log Analytics", className="text-warning"),
+
+    dbc.Row([
+        dbc.Col([
+            html.Label("Component"),
             dcc.Dropdown(
-                id="severity-filter",
-                options=[{"label": sev, "value": sev} for sev in fault_df["severity"].unique()],
-                placeholder="Select severity"
+                options=[{'label': c, 'value': c} for c in fault_df['component'].unique()],
+                id='component-dropdown'
             )
-        ], md=6),
+        ], width=6),
+        dbc.Col([
+            html.Label("Severity"),
+            dcc.Dropdown(
+                options=[{'label': s, 'value': s} for s in fault_df['severity'].unique()],
+                id='severity-dropdown'
+            )
+        ], width=6)
     ], className="mb-4"),
 
-    dcc.Graph(id="fault-timeline", figure=fig_faults),
+    dcc.Graph(id='fault-graph'),
 
+    html.Div(id='live-alerts', className="text-danger font-weight-bold mt-4"),
+
+    dcc.Interval(
+        id='interval-component',
+        interval=5*1000,  # every 5 seconds
+        n_intervals=0
+    )
 ], fluid=True)
 
+# Callback for updating graph
 @app.callback(
-    Output("fault-timeline", "figure"),
-    Input("component-filter", "value"),
-    Input("severity-filter", "value")
+    Output('fault-graph', 'figure'),
+    [Input('component-dropdown', 'value'),
+     Input('severity-dropdown', 'value')]
 )
 def update_chart(component, severity):
     filtered = fault_df.copy()
@@ -94,6 +102,17 @@ def update_chart(component, severity):
     )
     fig.update_layout(bargap=0.2, plot_bgcolor="#1e1e1e", paper_bgcolor="#1e1e1e", font_color="white")
     return fig
+
+# Callback for real-time alert UI display
+@app.callback(
+    Output('live-alerts', 'children'),
+    Input('interval-component', 'n_intervals')
+)
+def display_alert(n):
+    alert_msg = check_for_critical_faults()
+    if alert_msg:
+        return f"🚨 {alert_msg}"
+    return ""
 
 if __name__ == "__main__":
     app.run(debug=True)

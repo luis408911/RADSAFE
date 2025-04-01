@@ -1,0 +1,6 @@
+timestamp,component,severity,message
+2025-04-01 00:00:01,CPU,critical,Register overflow
+2025-04-01 00:00:05,Memory,warning,Memory access delay
+2025-04-01 00:00:10,Bus,info,Bandwidth normal
+2025-04-01 00:01:00,CPU,critical,Cache parity error
+2025-04-01,CPU,fatal,Quantum bit collapse detected
